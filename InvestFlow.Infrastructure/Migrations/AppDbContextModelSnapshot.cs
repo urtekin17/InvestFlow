@@ -72,6 +72,9 @@ namespace InvestFlow.Infrastructure.Migrations
                     b.Property<DateTime?>("ExecutedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("IdempotencyKey")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("InstrumentId")
                         .HasColumnType("uuid");
 
@@ -88,6 +91,9 @@ namespace InvestFlow.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
 
                     b.ToTable("Orders");
                 });

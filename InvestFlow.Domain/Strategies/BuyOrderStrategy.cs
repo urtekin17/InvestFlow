@@ -25,7 +25,7 @@ namespace InvestFlow.Domain.Strategies
             {
                 throw new InvalidOperationException("Wrong customer or instrument.");
             }
-            Order order = new Order(customer.Id, instrument.Id, OrderType.Buy, quantity, instrument.Price);
+            Order order = new Order(new Guid(), customer.Id, instrument.Id, OrderType.Buy, quantity, instrument.Price);
             order.Execute();
             portfolio.AddPosition(quantity, instrument.Price);
             customer.Withdraw(totalAmount);
