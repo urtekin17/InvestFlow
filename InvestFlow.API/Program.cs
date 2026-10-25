@@ -30,6 +30,9 @@ var connectionString =
     builder.Configuration.GetConnectionString("InvestFlowDB");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
+builder.Services.AddDbContextFactory<AppDbContext>(
+    options => options.UseNpgsql(connectionString),
+    ServiceLifetime.Scoped);
 
 var app = builder.Build();
 

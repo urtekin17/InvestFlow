@@ -1,8 +1,11 @@
 ﻿using InvestFlow.Application.Commands;
 using InvestFlow.Application.Exceptions;
 using InvestFlow.Application.Interfaces;
+using InvestFlow.Application.Validators;
 using InvestFlow.Domain.Entities;
 using InvestFlow.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace InvestFlow.Application.Handlers
 {
@@ -33,12 +36,9 @@ namespace InvestFlow.Application.Handlers
             Order? existingOrder = await _orderRepository.GetByIdempotencyKeyAsync(buyOrderCommand.IdempotencyKey,cancellationToken);
             if(existingOrder != null)
             {
-                if (buyOrderCommand.CustomerId != existingOrder.CustomerId || buyOrderCommand.InstrumentId != existingOrder.InstrumentId
-                                                                                || buyOrderCommand.Quantity != existingOrder.Quantity
-                                                                                || buyOrderCommand.Price != existingOrder.Price
-                                                                                || existingOrder.Type != OrderType.Buy)
+                if (!OrderIdempotencyValidator.IsSameOrder(existingOrder, buyOrderCommand.CustomerId, buyOrderCommand.InstrumentId, buyOrderCommand.Quantity, buyOrderCommand.Price, OrderType.Buy))
                 {
-                    throw new InvalidOperationException("Idempotency key is already used for a different order.");
+                    throw new IdempotencyKeyConflictException();
                 }
                 return existingOrder;
             }
@@ -58,7 +58,23 @@ namespace InvestFlow.Application.Handlers
             customer.Withdraw(totalPrice);
             await _orderRepository.AddOrderAsync(order,cancellationToken);
 
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex)
+                when (ex.InnerException is PostgresException pgEx
+                      && pgEx.SqlState == PostgresErrorCodes.UniqueViolation
+                      && pgEx.ConstraintName == "IX_Orders_IdempotencyKey")
+            {
+                Order? existOrder = await _orderRepository.GetByIdempotencyKeyFreshAsync(buyOrderCommand.IdempotencyKey, cancellationToken);
+                if (existOrder == null) throw;
+                if (!OrderIdempotencyValidator.IsSameOrder(existOrder, buyOrderCommand.CustomerId, buyOrderCommand.InstrumentId, buyOrderCommand.Quantity, buyOrderCommand.Price, OrderType.Buy))
+                {
+                    throw new IdempotencyKeyConflictException();
+                }
+                return existOrder;
+            }
 
             return order;
 

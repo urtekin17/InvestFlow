@@ -14,6 +14,7 @@ namespace InvestFlow.API.ExceptionHandlers
                 CustomerAlreadyExistsException => StatusCodes.Status409Conflict,
                 CustomerNotFoundException => StatusCodes.Status404NotFound,
                 DbUpdateConcurrencyException => StatusCodes.Status409Conflict,
+                IdempotencyKeyConflictException => StatusCodes.Status409Conflict,
                 _ => StatusCodes.Status500InternalServerError
             };
 
@@ -37,6 +38,9 @@ namespace InvestFlow.API.ExceptionHandlers
 
                     CustomerNotFoundException =>
                         "Customer not found.",
+
+                    IdempotencyKeyConflictException =>
+                        "This idempotency key has already been used for a different order.",
 
                     _ => "An unexpected error occurred."
                 }
